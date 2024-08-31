@@ -1,0 +1,11 @@
+[package]
+name = "gen-rfc9500-gpg-keys"
+version = "1.0.0"
+edition = "2021"
+authors = ["Manos Pitsidianakis <manos@pitsidianak.is>"]
+license = "EUPL-1.2 OR GPL-3.0-or-later"
+publish = false
+
+[dependencies]
+sequoia-openpgp = { version = "1.21.2" }
+env_logger = { version = "0.11.5" }
