@@ -32,17 +32,17 @@ pub use std::{io::Write, time::SystemTime};
 
 use openpgp::types::HashAlgorithm;
 pub use openpgp::{
+    Cert, Packet, Result,
     armor::Kind,
     packet::{
-        key::{Key4, PrimaryRole, PublicParts, SecretParts, UnspecifiedRole},
         Key, Signature, UserID,
+        key::{Key4, PrimaryRole, PublicParts, SecretParts, UnspecifiedRole},
     },
     serialize::{
-        stream::{Armorer, Message},
         SerializeInto,
+        stream::{Armorer, Message},
     },
     types::SignatureType,
-    Cert, Packet, Result,
 };
 pub use sequoia_openpgp as openpgp;
 
@@ -98,11 +98,15 @@ pub fn generate_rsa_cert(uid: Option<UserID>) -> Result<Cert> {
     let public_part: Key4<PublicParts, PrimaryRole> =
         key.clone().parts_into_public().role_into_primary();
     let public_packet = Packet::from(Key::from(public_part));
-    let secret_part: Key4<SecretParts, PrimaryRole> = key.role_into_primary();
+
+    let cert = Cert::try_from(public_packet)?;
+
+    // Sanity check: assert that cert already has secret key in it.
+    let secret_part: Key4<SecretParts, PrimaryRole> = key.parts_into_secret()?.into();
     let secret_packet = Packet::from(Key::from(secret_part));
 
-    let mut cert = Cert::try_from(public_packet)?;
-    cert = cert.insert_packets(vec![secret_packet])?;
+    let (cert, changed) = cert.insert_packets(vec![secret_packet])?;
+    assert!(!changed);
 
     if let Some(uid) = uid {
         let uid_binding_sig: Signature = uid.certify(
@@ -112,14 +116,17 @@ pub fn generate_rsa_cert(uid: Option<UserID>) -> Result<Cert> {
             Some(HashAlgorithm::SHA512),
             SystemTime::UNIX_EPOCH,
         )?;
-        cert = cert.insert_packets(vec![Packet::from(uid.clone()), uid_binding_sig.into()])?;
+        let (cert, changed) =
+            cert.insert_packets(vec![Packet::from(uid.clone()), uid_binding_sig.into()])?;
+        assert!(changed);
+        return Ok(cert);
     }
     Ok(cert)
 }
 
 /// Write public armored key to `message`.
 pub fn write_public_armored_key_block<'a>(message: Message<'a>, cert: &Cert) -> Result<()> {
-    let packets = cert.clone().into_packets2().collect::<Vec<_>>();
+    let packets = cert.clone().into_packets().collect::<Vec<_>>();
     let mut message = Armorer::new(message).kind(Kind::PublicKey).build()?;
     for packet in packets {
         message.write_all(&packet.to_vec().unwrap())?;

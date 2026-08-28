@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: EUPL-1.2 OR GPL-3.0-or-later
 
 use gen_rfc9500_gpg_keys::*;
-use openpgp::{parse::Parse, PacketPile};
+use openpgp::{PacketPile, parse::Parse};
 
 // NOTE: the self signature has a random salt, so we need to process the parsed
 // `Cert` certificates to remove it- Otherwise comparing for equality will fail.
 
-// [`identity_filter`](https://docs.rs/sequoia-openpgp/1.12.0/sequoia_openpgp/struct.Cert.html#filtering-certificates)
+// [`identity_filter`](https://docs.rs/sequoia-openpgp/latest/sequoia_openpgp/struct.Cert.html#filtering-certificates)
 fn identity_filter(cert: Cert) -> Cert {
-    // Iterate over all of the Cert components, pushing packets we
+    // Iterate over all the Cert components, pushing packets we
     // want to keep into the accumulator.
     let mut acc = Vec::new();
 
@@ -34,7 +34,7 @@ fn identity_filter(cert: Cert) -> Cert {
         //for s in c.self_signatures() {
         //    acc.push(s.clone().into())
         //}
-        for s in c.attestations() {
+        for s in c.approvals() {
             acc.push(s.clone().into())
         }
         for s in c.certifications() {
@@ -54,7 +54,7 @@ fn identity_filter(cert: Cert) -> Cert {
         //for s in c.self_signatures() {
         //    acc.push(s.clone().into())
         //}
-        for s in c.attestations() {
+        for s in c.approvals() {
             acc.push(s.clone().into())
         }
         for s in c.certifications() {
