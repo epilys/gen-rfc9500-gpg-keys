@@ -9,3 +9,7 @@ publish = false
 [dependencies]
 env_logger = { version = "0.11.11" }
 sequoia-openpgp = { version = "2.4.1" }
+
+[dev-dependencies]
+tempfile = { version = "3.3" }
+sequoia = { git = "https://gitlab.com/sequoia-pgp/sequoia-sq.git", rev = "30a064cae4b7d44d7a374eb723f7d90183127f5d", package = "sequoia" }
