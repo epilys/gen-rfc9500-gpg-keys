@@ -30,19 +30,19 @@
 
 pub use std::{io::Write, time::SystemTime};
 
-use openpgp::types::HashAlgorithm;
 pub use openpgp::{
     Cert, Packet, Result,
     armor::Kind,
     packet::{
         Key, Signature, UserID,
         key::{Key4, PrimaryRole, PublicParts, SecretParts, UnspecifiedRole},
+        prelude::*,
     },
     serialize::{
         SerializeInto,
         stream::{Armorer, Message},
     },
-    types::SignatureType,
+    types::{HashAlgorithm, KeyFlags, SignatureType},
 };
 pub use sequoia_openpgp as openpgp;
 
@@ -102,11 +102,28 @@ pub fn generate_rsa_cert(uid: Option<UserID>) -> Result<Cert> {
     let cert = Cert::try_from(public_packet)?;
 
     // Sanity check: assert that cert already has secret key in it.
-    let secret_part: Key4<SecretParts, PrimaryRole> = key.parts_into_secret()?.into();
+    let secret_part: Key4<SecretParts, PrimaryRole> = key.clone().parts_into_secret()?.into();
     let secret_packet = Packet::from(Key::from(secret_part));
 
     let (cert, changed) = cert.insert_packets(vec![secret_packet])?;
     assert!(!changed);
+    let cert = {
+        // Add signing etc key flags
+        let mut pk_signer = key.clone().into_keypair()?;
+
+        let sig = SignatureBuilder::new(SignatureType::DirectKey)
+            .set_key_flags(
+                KeyFlags::empty()
+                    .set_signing()
+                    .set_transport_encryption()
+                    .set_authentication()
+                    .set_certification(),
+            )?
+            .sign_direct_key(&mut pk_signer, cert.primary_key().key())?;
+        let (cert, changed) = cert.insert_packets(vec![sig])?;
+        assert!(changed);
+        cert
+    };
 
     if let Some(uid) = uid {
         let uid_binding_sig: Signature = uid.certify(
