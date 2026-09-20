@@ -162,3 +162,23 @@ pub fn write_private_armored_key_block<'a>(message: Message<'a>, cert: &Cert) ->
     message.finalize()?;
     Ok(())
 }
+
+/// Write public key to `message`.
+pub fn write_public_key_block<'a>(mut message: Message<'a>, cert: &Cert) -> Result<()> {
+    let packets = cert.clone().into_packets().collect::<Vec<_>>();
+    for packet in packets {
+        message.write_all(&packet.to_vec().unwrap())?;
+    }
+    message.finalize()?;
+    Ok(())
+}
+
+/// Write private key to `message`.
+pub fn write_private_key_block<'a>(mut message: Message<'a>, cert: &Cert) -> Result<()> {
+    let packets = cert.clone().into_tsk().into_packets().collect::<Vec<_>>();
+    for packet in packets {
+        message.write_all(&packet.to_vec().unwrap())?;
+    }
+    message.finalize()?;
+    Ok(())
+}
